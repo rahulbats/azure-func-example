@@ -45,14 +45,14 @@ resource plan 'Microsoft.Web/serverfarms@2021-02-01' = {
 var storageKey = storage.listKeys().keys[0].value
 var storageConnectionString = 'DefaultEndpointsProtocol=https;AccountName=${storage.name};AccountKey=${storageKey};EndpointSuffix=core.windows.net'
 
-resource functionApp 'Microsoft.Web/sites@2021-02-01' = {
+resource functionApp 'Microsoft.Web/sites@2022-03-01' = {
   name: functionAppName
   location: location
   kind: 'functionapp,linux'
   properties: {
     serverFarmId: plan.id
     siteConfig: {
-    linuxFxVersion: 'PYTHON:3.10'
+    linuxFxVersion: 'PYTHON|3.10'
       appSettings: [
         {
           name: 'FUNCTIONS_WORKER_RUNTIME'
