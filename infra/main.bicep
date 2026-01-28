@@ -157,6 +157,13 @@ resource raQueue 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   }
 }
 
+// NOTE: Role assignment creation requires Microsoft.Authorization/roleAssignments/write
+// permission at the scope. CI service principals often lack this permission.
+// We omit creating role assignments here so infra can deploy under restricted policies.
+// An admin should grant the following roles to the Function App's principalId after deployment:
+// - Storage Blob Data Contributor
+// - Storage Queue Data Contributor
+
 // ------------------------------
 // Outputs
 // ------------------------------
