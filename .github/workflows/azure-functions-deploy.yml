@@ -1,0 +1,63 @@
+name: Azure Functions CI/CD (Infra + App)
+
+on:
+  push:
+    branches: [ main ]
+
+env:
+  AZURE_RESOURCE_GROUP: rahul-ai-test
+  AZURE_LOCATION: centralus
+  FUNCTION_APP_NAME: azure-func-demo-rahul-ci
+
+jobs:
+  infra:
+    name: Deploy infrastructure (Bicep)
+    runs-on: ubuntu-latest
+    outputs:
+      functionAppName: ${{ steps.deploy-infra.outputs.functionAppName }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy Bicep template
+        id: deploy-infra
+        run: |
+          set -e
+          az deployment group create -g $AZURE_RESOURCE_GROUP -f infra/main.bicep -p functionAppName=$FUNCTION_APP_NAME location=$AZURE_LOCATION -o json > infra_output.json
+          echo "infra_output=$(cat infra_output.json)"
+          functionAppName=$(jq -r '.properties.outputs.functionAppName.value' infra_output.json)
+          echo "functionAppName=$functionAppName" >> $GITHUB_OUTPUT
+
+  deploy:
+    name: Deploy Function App
+    needs: infra
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to Azure
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Build package
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt || true
+          zip -r deploy.zip function_app.py host.json requirements.txt || true
+
+      - name: Deploy package (zip deploy)
+        run: |
+          set -e
+          funcApp=${{ needs.infra.outputs.functionAppName }}
+          echo "Deploying to $funcApp"
+          az functionapp deployment source config-zip --resource-group $AZURE_RESOURCE_GROUP --name $funcApp --src deploy.zip -o json
+
+      - name: List deployments
+        run: az functionapp deployment list --name ${{ needs.infra.outputs.functionAppName }} --resource-group $AZURE_RESOURCE_GROUP -o table
