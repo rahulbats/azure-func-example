@@ -38,7 +38,10 @@ resource plan 'Microsoft.Web/serverfarms@2021-02-01' = {
     name: 'Y1'
     tier: 'Dynamic'
   }
-  kind: 'functionapp'
+  kind: 'functionapp,linux'
+  properties: {
+    reserved: true
+  }
 }
 
 // Use resource symbol invocation for keys so Bicep tracks the dependency automatically
@@ -52,7 +55,7 @@ resource functionApp 'Microsoft.Web/sites@2022-03-01' = {
   properties: {
     serverFarmId: plan.id
     siteConfig: {
-    linuxFxVersion: 'PYTHON|3.10'
+    linuxFxVersion: 'python|3.10'
       appSettings: [
         {
           name: 'FUNCTIONS_WORKER_RUNTIME'
