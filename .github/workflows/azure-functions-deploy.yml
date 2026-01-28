@@ -24,20 +24,29 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Register required resource providers
+      - name: Ensure required resource providers (safe)
         run: |
           set -e
-          az provider register --namespace Microsoft.OperationalInsights || true
-          az provider register --namespace Microsoft.Insights || true
-          az provider register --namespace Microsoft.Storage || true
-          # Wait for OperationalInsights to register (timeout ~3 minutes)
-          for i in $(seq 1 36); do
-            state=$(az provider show -n Microsoft.OperationalInsights --query "registrationState" -o tsv)
-            echo "OperationalInsights registration state: $state"
-            if [ "$state" = "Registered" ]; then
-              break
+          providers=("Microsoft.OperationalInsights" "Microsoft.Insights" "Microsoft.Storage")
+          for p in "${providers[@]}"; do
+            state=$(az provider show -n $p --query registrationState -o tsv || echo "Unknown")
+            echo "$p registration state: $state"
+            if [ "$state" != "Registered" ]; then
+              echo "Attempting to register $p"
+              if az provider register -n $p; then
+                # Wait for registration to complete (timeout ~3 minutes)
+                for i in $(seq 1 36); do
+                  state=$(az provider show -n $p --query registrationState -o tsv)
+                  echo "$p registration state: $state"
+                  if [ "$state" = "Registered" ]; then
+                    break
+                  fi
+                  sleep 5
+                done
+              else
+                echo "Warning: failed to register $p. This may be due to insufficient permissions for the service principal. Continuing without registration."
+              fi
             fi
-            sleep 5
           done
 
       - name: Deploy Bicep template
@@ -73,7 +82,8 @@ jobs:
           set -e
           funcApp=${{ needs.infra.outputs.functionAppName }}
           echo "Deploying to $funcApp"
-          az functionapp deployment source config-zip --resource-group $AZURE_RESOURCE_GROUP --name $funcApp --src deploy.zip -o json
+          # Use `az webapp deploy` which supports remote zip deployment for Linux apps
+          az webapp deploy --resource-group $AZURE_RESOURCE_GROUP --name $funcApp --src-path deploy.zip --type zip -o json
 
       - name: List deployments
         run: az functionapp deployment list --name ${{ needs.infra.outputs.functionAppName }} --resource-group $AZURE_RESOURCE_GROUP -o table
