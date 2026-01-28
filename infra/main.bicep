@@ -52,7 +52,7 @@ resource functionApp 'Microsoft.Web/sites@2021-02-01' = {
   properties: {
     serverFarmId: plan.id
     siteConfig: {
-    linuxFxVersion: 'PYTHON|3.11'
+    linuxFxVersion: 'PYTHON|3.10'
       appSettings: [
         {
           name: 'FUNCTIONS_WORKER_RUNTIME'
