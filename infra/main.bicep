@@ -1,7 +1,13 @@
 param functionAppName string = 'azure-func-demo-rahul-ci'
 param location string = resourceGroup().location
 
-var storageName = toLower('${replace(functionAppName, '-', '')}${uniqueString(resourceGroup().id)}')
+// Storage account names must be 3-24 characters, lowercase letters and numbers only.
+// Build a short name: prefix from cleaned functionAppName + short unique suffix.
+var cleanedName = toLower(replace(functionAppName, '-', ''))
+var uniq = substring(uniqueString(resourceGroup().id), 0, 6)
+var prefixLen = max(0, 24 - length(uniq))
+var prefix = substring(cleanedName, 0, prefixLen)
+var storageName = '${prefix}${uniq}'
 
 resource storage 'Microsoft.Storage/storageAccounts@2022-09-01' = {
   name: storageName
