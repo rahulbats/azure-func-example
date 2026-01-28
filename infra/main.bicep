@@ -79,22 +79,49 @@ resource functionApp 'Microsoft.Web/sites@2022-03-01' = {
       linuxFxVersion: 'Python|3.10'
       appSettings: [
         // --- Functions runtime ---
-        { name: 'FUNCTIONS_WORKER_RUNTIME';        value: 'python' }
-        { name: 'FUNCTIONS_EXTENSION_VERSION';     value: '~4' }
+        {
+          name: 'FUNCTIONS_WORKER_RUNTIME'
+          value: 'python'
+        }
+        {
+          name: 'FUNCTIONS_EXTENSION_VERSION'
+          value: '~4'
+        }
 
         // --- Package deployment ---
-        { name: 'WEBSITE_RUN_FROM_PACKAGE';        value: '1' }
-        { name: 'SCM_DO_BUILD_DURING_DEPLOYMENT';  value: 'true' }
+        {
+          name: 'WEBSITE_RUN_FROM_PACKAGE'
+          value: '1'
+        }
+        {
+          name: 'SCM_DO_BUILD_DURING_DEPLOYMENT'
+          value: 'true'
+        }
 
         // --- App Insights (recommended modern setting) ---
-        { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'; value: appInsights.properties.ConnectionString }
+        {
+          name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
+          value: appInsights.properties.ConnectionString
+        }
 
         // --- Identity-based AzureWebJobsStorage (NO keys) ---
         // Grant MI → Storage RBAC below. These URIs typically end with '/' — fine for the host.
-        { name: 'AzureWebJobsStorage__credential';      value: 'managedidentity' }
-        { name: 'AzureWebJobsStorage__accountName';     value: storage.name }
-        { name: 'AzureWebJobsStorage__blobServiceUri';  value: storage.properties.primaryEndpoints.blob }
-        { name: 'AzureWebJobsStorage__queueServiceUri'; value: storage.properties.primaryEndpoints.queue }
+        {
+          name: 'AzureWebJobsStorage__credential'
+          value: 'managedidentity'
+        }
+        {
+          name: 'AzureWebJobsStorage__accountName'
+          value: storage.name
+        }
+        {
+          name: 'AzureWebJobsStorage__blobServiceUri'
+          value: storage.properties.primaryEndpoints.blob
+        }
+        {
+          name: 'AzureWebJobsStorage__queueServiceUri'
+          value: storage.properties.primaryEndpoints.queue
+        }
         // Add tables if you use them:
         // { name: 'AzureWebJobsStorage__tableServiceUri'; value: storage.properties.primaryEndpoints.table }
       ]
