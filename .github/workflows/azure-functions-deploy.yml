@@ -24,6 +24,22 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      - name: Register required resource providers
+        run: |
+          set -e
+          az provider register --namespace Microsoft.OperationalInsights || true
+          az provider register --namespace Microsoft.Insights || true
+          az provider register --namespace Microsoft.Storage || true
+          # Wait for OperationalInsights to register (timeout ~3 minutes)
+          for i in $(seq 1 36); do
+            state=$(az provider show -n Microsoft.OperationalInsights --query "registrationState" -o tsv)
+            echo "OperationalInsights registration state: $state"
+            if [ "$state" = "Registered" ]; then
+              break
+            fi
+            sleep 5
+          done
+
       - name: Deploy Bicep template
         id: deploy-infra
         run: |
