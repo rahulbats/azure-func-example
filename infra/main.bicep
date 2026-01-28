@@ -41,8 +41,8 @@ resource plan 'Microsoft.Web/serverfarms@2021-02-01' = {
   kind: 'functionapp'
 }
 
-var storageKeys = listKeys(storage.id, storage.apiVersion)
-var storageKey = storageKeys.keys[0].value
+// Use resource symbol invocation for keys so Bicep tracks the dependency automatically
+var storageKey = storage.listKeys().keys[0].value
 var storageConnectionString = 'DefaultEndpointsProtocol=https;AccountName=${storage.name};AccountKey=${storageKey};EndpointSuffix=core.windows.net'
 
 resource functionApp 'Microsoft.Web/sites@2021-02-01' = {
@@ -81,11 +81,7 @@ resource functionApp 'Microsoft.Web/sites@2021-02-01' = {
       ]
     }
   }
-  dependsOn: [
-    plan
-    storage
-    appInsights
-  ]
+  // Bicep automatically infers dependencies from references; explicit dependsOn is unnecessary here
 }
 
 output functionAppName string = functionApp.name
