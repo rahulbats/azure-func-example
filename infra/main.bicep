@@ -149,7 +149,7 @@ resource functionApp 'Microsoft.Web/sites@2022-03-01' = {
 // and storage (Blob + Queue Data Contributor)
 // ------------------------------
 resource raAppConfigContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(subscription().id, appConfiguration.id, functionApp.id, 'Contributor')
+  name: guid(appConfiguration.id, functionApp.id, 'Contributor')
   scope: appConfiguration
   properties: {
     roleDefinitionId: '${subscription().id}/providers/Microsoft.Authorization/roleDefinitions/b24988ac-6180-42a0-ab88-20f7382dd24c'
@@ -159,7 +159,7 @@ resource raAppConfigContributor 'Microsoft.Authorization/roleAssignments@2022-04
 }
 
 resource raBlob 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(subscription().id, storage.id, functionApp.id, 'Storage Blob Data Contributor')
+  name: guid(storage.id, functionApp.id, 'Blob')
   scope: storage
   properties: {
     roleDefinitionId: '${subscription().id}/providers/Microsoft.Authorization/roleDefinitions/ba92f5b4-2d11-453d-a403-e96b0029c9fe'
@@ -169,7 +169,7 @@ resource raBlob 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
 }
 
 resource raQueue 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(subscription().id, storage.id, functionApp.id, 'Storage Queue Data Contributor')
+  name: guid(storage.id, functionApp.id, 'Queue')
   scope: storage
   properties: {
     roleDefinitionId: '${subscription().id}/providers/Microsoft.Authorization/roleDefinitions/974c5e8b-45b9-4653-ba55-5f855dd0fb88'
