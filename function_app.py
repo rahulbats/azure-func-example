@@ -20,6 +20,6 @@ def azure_func_example_with_variable(req: func.HttpRequest) -> func.HttpResponse
         return func.HttpResponse(f"these are the app details,app-name {app_name}, app-version {app_version}. This HTTP triggered function executed successfully.")
     else:
         return func.HttpResponse(
-             "This HTTP triggered function executed successfully. Pass a name in the query string or in the request body for a personalized response.",
+             f"{app_name} environment variable is not set.",
              status_code=200
         )
