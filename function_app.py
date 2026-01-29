@@ -15,17 +15,9 @@ def azure_func_example_with_variable(req: func.HttpRequest) -> func.HttpResponse
     logging.info(f"APP_NAME={app_name}")
     logging.info(f"APP_VERSION={app_version}")
 
-    name = req.params.get('name')
-    if not name:
-        try:
-            req_body = req.get_json()
-        except ValueError:
-            pass
-        else:
-            name = req_body.get('name')
 
-    if name:
-        return func.HttpResponse(f"Hello, {name}. This HTTP triggered function executed successfully.")
+    if app_name:
+        return func.HttpResponse(f"these are the app details,app-name {app_name}, app-version {app_version}. This HTTP triggered function executed successfully.")
     else:
         return func.HttpResponse(
              "This HTTP triggered function executed successfully. Pass a name in the query string or in the request body for a personalized response.",
