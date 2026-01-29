@@ -4,6 +4,12 @@ param functionAppName string = 'azure-func-demo-rahul-prem'
 @description('Deployment location (defaults to RG location).')
 param location string = resourceGroup().location
 
+@description('Application name for the APP_NAME app setting')
+param appName string = 'azure-func-demo-rahul'
+
+@description('Application version for the APP_VERSION app setting')
+param appVersion string = '1.0.0'
+
 // ------------------------------
 // Storage account (3–24, lowercase/numbers)
 // ------------------------------
@@ -87,6 +93,10 @@ resource functionApp 'Microsoft.Web/sites@2022-03-01' = {
 
         // --- App Insights ---
         { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsights.properties.ConnectionString }
+
+        // --- App metadata ---
+        { name: 'APP_NAME', value: appName }
+        { name: 'APP_VERSION', value: appVersion }
 
         // --- Identity-based AzureWebJobsStorage (NO keys) ---
         { name: 'AzureWebJobsStorage__credential', value: 'managedidentity' }
