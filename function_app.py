@@ -17,6 +17,7 @@ def get_app_config_client():
     credential = DefaultAzureCredential()
     return AzureAppConfigurationClient(endpoint=app_config_endpoint, credential=credential)
 
+@app.function_name(name="azure_func_example_app_config")
 @app.route(route="azure_func_example_with_app_config")
 def azure_func_example_with_app_config(req: func.HttpRequest) -> func.HttpResponse:
     logging.info('Python HTTP trigger function processed a request.')
