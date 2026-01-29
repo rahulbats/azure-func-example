@@ -1,0 +1,334 @@
+# Azure Function Demo - Deployment Guide
+
+This repository contains an Azure Function application with infrastructure-as-code using Bicep templates and Oryx build configuration for automated deployment.
+
+## Table of Contents
+
+- [Prerequisites](#prerequisites)
+- [Project Structure](#project-structure)
+- [Local Development Setup](#local-development-setup)
+- [Deployment Steps](#deployment-steps)
+- [Infrastructure](#infrastructure)
+- [CI/CD Pipeline](#cicd-pipeline)
+
+## Prerequisites
+
+- **Azure Subscription**: An active Azure subscription
+- **Azure CLI**: [Install Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli)
+- **Python 3.11+**: [Download Python](https://www.python.org/downloads/)
+- **Azure Functions Core Tools**: `npm install -g azure-functions-core-tools@4 --unsafe-perm true`
+- **Bicep CLI**: `az bicep install`
+- **Git**: For version control
+
+## Project Structure
+
+```
+azure-function-test/
+├── function_app.py              # Azure Function application code
+├── host.json                    # Azure Functions host configuration
+├── requirements.txt             # Python dependencies
+├── README.md                    # This file
+├── .funcignore                  # Files to ignore when publishing
+├── .gitignore                   # Git ignore rules
+├── infra/
+│   └── main.bicep              # Bicep template for Azure resources
+├── .github/
+│   └── workflows/
+│       └── azure-functions-deploy.yml  # GitHub Actions workflow
+└── .vscode/
+    ├── launch.json             # VS Code debug configuration
+    ├── settings.json           # VS Code workspace settings
+    ├── tasks.json              # VS Code tasks
+    └── extensions.json         # Recommended VS Code extensions
+```
+
+## Local Development Setup
+
+### 1. Clone the Repository
+
+```bash
+git clone <repository-url>
+cd azure-function-test
+```
+
+### 2. Create Python Virtual Environment
+
+```bash
+python -m venv .venv
+```
+
+**Activate the virtual environment:**
+
+- **Windows (PowerShell)**: `.\.venv\Scripts\Activate.ps1`
+- **Windows (cmd)**: `.\.venv\Scripts\activate.bat`
+- **macOS/Linux**: `source .venv/bin/activate`
+
+### 3. Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Run Locally
+
+Start the Azure Functions runtime:
+
+```bash
+func start
+```
+
+The function will be available at `http://localhost:7071`
+
+### 5. Test the Function
+
+```bash
+curl http://localhost:7071/api/<function-name>
+```
+
+## Deployment Steps
+
+### Step 1: Prepare Azure Resources
+
+1. **Login to Azure**:
+   ```bash
+   az login
+   ```
+
+2. **Set your subscription** (if you have multiple):
+   ```bash
+   az account set --subscription <subscription-id>
+   ```
+
+3. **Create a Resource Group**:
+   ```bash
+   az group create --name azure-func-rg --location eastus
+   ```
+
+### Step 2: Deploy Infrastructure with Bicep
+
+The Bicep template creates:
+- Storage Account (for function state and logs)
+- App Insights (for monitoring and diagnostics)
+- App Service Plan (Dynamic Y1 tier for Functions)
+- Azure Function App (Linux-based with Python 3.11 runtime)
+
+**Deploy the infrastructure**:
+
+```bash
+az deployment group create \
+  --resource-group azure-func-rg \
+  --template-file infra/main.bicep \
+  --parameters functionAppName=azure-func-demo-rahul-ci
+```
+
+**Customize parameters**:
+
+```bash
+az deployment group create \
+  --resource-group azure-func-rg \
+  --template-file infra/main.bicep \
+  --parameters \
+    functionAppName=my-custom-function-name \
+    location=eastus
+```
+
+### Step 3: Build and Package Application
+
+**Option A: Using Oryx (Automated - Recommended)**
+
+Oryx automatically detects Python and builds your application:
+
+```bash
+# Navigate to project root
+cd /path/to/azure-function-test
+
+# Oryx will detect requirements.txt and install dependencies
+# This is done automatically during deployment
+```
+
+**Option B: Manual Build
+
+```bash
+# Create deployment package
+func azure functionapp publish <function-app-name> --build remote
+```
+
+### Step 4: Deploy to Azure Function
+
+**Using Azure Functions CLI**:
+
+```bash
+# Publish the function app
+func azure functionapp publish <function-app-name> --build remote
+
+# The `--build remote` flag triggers Oryx build on Azure
+```
+
+**Using Azure CLI**:
+
+```bash
+# Create a zip package
+Compress-Archive -Path ./* -DestinationPath function.zip -Force
+
+# Deploy the zip
+az functionapp deployment source config-zip \
+  --resource-group azure-func-rg \
+  --name <function-app-name> \
+  --src-path function.zip
+```
+
+### Step 5: Verify Deployment
+
+```bash
+# Check function app status
+az functionapp show \
+  --resource-group azure-func-rg \
+  --name <function-app-name>
+
+# Get the function URL
+az functionapp show \
+  --resource-group azure-func-rg \
+  --name <function-app-name> \
+  --query defaultHostName \
+  --output tsv
+
+# Test the deployed function
+curl https://<function-app-name>.azurewebsites.net/api/<function-name>
+```
+
+## Infrastructure
+
+### Bicep Template Overview
+
+The `infra/main.bicep` template defines:
+
+**Parameters**:
+- `functionAppName`: Name of the Azure Function App
+- `location`: Azure region for resources
+
+**Resources Created**:
+
+1. **Storage Account**
+   - SKU: Standard_LRS
+   - Kind: StorageV2
+   - Used for function runtime and state
+
+2. **Application Insights**
+   - Type: Web
+   - Provides monitoring and diagnostics
+
+3. **App Service Plan**
+   - Tier: Dynamic (Y1)
+   - Kind: functionapp
+   - Auto-scales for serverless execution
+
+4. **Azure Function App**
+   - Runtime: Python 3.11
+   - OS: Linux
+   - Connected to Storage and Application Insights
+
+**Outputs**:
+- `functionAppName`: Name of the deployed function app
+- `storageAccountName`: Name of the storage account
+
+### Deployment Architecture
+
+```
+Resource Group (azure-func-rg)
+├── Storage Account
+├── Application Insights
+├── App Service Plan
+└── Azure Function App
+    ├── Runtime: Python 3.11
+    └── Configuration: App Settings (Storage Connection, App Insights Key, etc.)
+```
+
+## CI/CD Pipeline
+
+The repository includes a GitHub Actions workflow (`.github/workflows/azure-functions-deploy.yml`) that automates deployment:
+
+### Workflow Triggers
+
+- Push to `main` branch
+- Manual trigger via GitHub Actions
+
+### Workflow Steps
+
+1. **Checkout code**
+2. **Setup Python** (3.11)
+3. **Install dependencies** using Oryx-compatible approach
+4. **Build** (Oryx build on Azure)
+5. **Deploy** to Azure Function App
+
+### Setup CI/CD
+
+1. **Create GitHub Secrets**:
+   ```
+   AZURE_FUNCTIONAPP_PUBLISH_PROFILE
+   AZURE_CREDENTIALS (JSON format with service principal)
+   ```
+
+2. **Trigger workflow**:
+   - Push to main branch, or
+   - Manually from GitHub Actions tab
+
+## Oryx Build Configuration
+
+Oryx automatically:
+- Detects Python runtime from `runtime.txt` or latest available
+- Installs dependencies from `requirements.txt`
+- Prepares the application for serverless execution
+- Optimizes build for cold start performance
+
+**Key Files for Oryx**:
+- `requirements.txt`: Python packages (required)
+- `.funcignore`: Files to exclude from deployment
+
+## Troubleshooting
+
+### Function Not Responding
+
+```bash
+# Check function app logs
+az webapp log tail --resource-group azure-func-rg --name <function-app-name>
+```
+
+### Deployment Failures
+
+```bash
+# Check deployment history
+az deployment group list --resource-group azure-func-rg
+
+# View detailed error
+az deployment group show \
+  --resource-group azure-func-rg \
+  --name <deployment-name>
+```
+
+### Local Testing Issues
+
+```bash
+# Verify Azure Functions Core Tools
+func --version
+
+# Clear local cache
+rm -r .azure .funcignore
+
+# Reinstall dependencies
+pip install -r requirements.txt --force-reinstall
+```
+
+## Additional Resources
+
+- [Azure Functions Python Developer Guide](https://learn.microsoft.com/azure/azure-functions/functions-reference-python)
+- [Bicep Documentation](https://learn.microsoft.com/azure/azure-resource-manager/bicep/overview)
+- [Oryx Build Documentation](https://github.com/microsoft/Oryx)
+- [Azure Functions Deployment Slots](https://learn.microsoft.com/azure/azure-functions/functions-deployment-slots)
+
+## License
+
+[Add your license information here]
+
+## Support
+
+For issues or questions, please [create an issue](../../issues) in the repository.
