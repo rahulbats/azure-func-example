@@ -54,8 +54,9 @@ resource plan 'Microsoft.Web/serverfarms@2021-02-01' = {
   kind: 'functionapp,linux'
   properties: {
     reserved: true // Linux
-    // Optional: per your workload needs
-    // maximumElasticWorkerCount: 20
+   
+    numberOfWorkers: 1
+    maximumElasticWorkerCount: 5 
   }
 }
 
