@@ -23,9 +23,21 @@ This repository contains a **demo Azure Function application** that demonstrates
 - **Azure Subscription**: An active Azure subscription
 - **Azure CLI**: [Install Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli)
 - **Python 3.11+**: [Download Python](https://www.python.org/downloads/)
-- **Azure Functions Core Tools**: `npm install -g azure-functions-core-tools@4 --unsafe-perm true`
 - **Bicep CLI**: `az bicep install`
 - **Git**: For version control
+
+### Azure Entra (AD) Configuration for GitHub Actions OIDC
+
+For CI/CD automation, configure the following in Azure Entra:
+
+1. **Service Principal**: Create an Azure AD Application (Service Principal) that GitHub Actions will use
+2. **Federated Credentials**: Configure GitHub as a federated identity provider:
+   - Add federated credential linking your GitHub repository to the Azure AD app
+   - This enables keyless OIDC authentication (no secrets needed in GitHub)
+   - Configure for: `repo:<owner>/<repo>:ref:refs/heads/main`
+3. **Contributor Role**: Assign the **Contributor** role to the service principal at the subscription or resource group level
+   - This allows GitHub Actions to deploy resources via Bicep templates
+   - Minimum required permissions: Can create/modify Storage, App Insights, App Service Plan, and Function App resources
 
 ## Project Structure
 
@@ -403,10 +415,4 @@ pip install -r requirements.txt --force-reinstall
 - [Oryx Build Documentation](https://github.com/microsoft/Oryx)
 - [Azure Functions Deployment Slots](https://learn.microsoft.com/azure/azure-functions/functions-deployment-slots)
 
-## License
 
-[Add your license information here]
-
-## Support
-
-For issues or questions, please [create an issue](../../issues) in the repository.
