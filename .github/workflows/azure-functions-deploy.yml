@@ -82,8 +82,10 @@ jobs:
           set -e
           funcApp=${{ needs.infra.outputs.functionAppName }}
           echo "Deploying to $funcApp"
-          # Use `az webapp deploy` which supports remote zip deployment for Linux apps
-          az webapp deploy --resource-group $AZURE_RESOURCE_GROUP --name $funcApp --src-path deploy.zip --type zip -o json
-
-      - name: List deployments
-        run: az webapp deployment list --name ${{ needs.infra.outputs.functionAppName }} --resource-group $AZURE_RESOURCE_GROUP -o table
+          # Use SCM zipdeploy so Oryx will run and its logs appear in Deployment Center
+          publish_json=$(az webapp deployment list-publishing-profiles -g $AZURE_RESOURCE_GROUP -n $funcApp --output json)
+          user=$(echo "$publish_json" | jq -r '.[0].userName')
+          pwd=$(echo "$publish_json" | jq -r '.[0].userPWD')
+          echo "Publishing with user $user"
+          # POST to /api/zipdeploy to trigger Oryx build on SCM; use isAsync to return quickly
+          curl --fail -v -u "$user:$pwd" -X POST "https://$funcApp.scm.azurewebsites.net/api/zipdeploy?isAsync=true" --data-binary @deploy.zip -H "Content-Type: application/zip"

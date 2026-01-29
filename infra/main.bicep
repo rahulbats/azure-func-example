@@ -82,7 +82,7 @@ resource functionApp 'Microsoft.Web/sites@2022-03-01' = {
         { name: 'FUNCTIONS_EXTENSION_VERSION', value: '~4' }
 
         // --- Package deployment / Kudu (ZipDeploy or Oryx) ---
-        { name: 'WEBSITE_RUN_FROM_PACKAGE', value: '1' }
+        // Use Oryx build during deployment; do NOT use run-from-package (it bypasses build)
         { name: 'SCM_DO_BUILD_DURING_DEPLOYMENT', value: 'true' }
 
         // --- App Insights ---
