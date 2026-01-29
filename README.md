@@ -1,6 +1,13 @@
 # Azure Function Demo - Deployment Guide
 
-This repository contains an Azure Function application with infrastructure-as-code using Bicep templates and Oryx build configuration for automated deployment.
+This repository contains a **demo Azure Function application** that demonstrates how to read environment variables and print them via HTTP triggers. The environment variables are automatically injected using **Bicep Infrastructure-as-Code (IaC) templates**, and the entire deployment pipeline is fully automated using **GitHub Actions CI/CD** with Oryx build configuration.
+
+## Overview
+
+- **Function Behavior**: The Azure Function HTTP trigger reads environment variables (such as `FUNCTIONS_WORKER_RUNTIME`, `APPINSIGHTS_INSTRUMENTATIONKEY`, `AzureWebJobsStorage`, etc.) and outputs them in the HTTP response
+- **Infrastructure Automation**: All Azure resources (Storage, App Insights, App Service Plan, Function App) and app settings are defined in Bicep templates
+- **Deployment Automation**: GitHub Actions automatically deploys infrastructure and application code on every push to the main branch
+- **Zero-Touch Deployment**: No manual configuration needed—everything is automated via IaC and CI/CD
 
 ## Table of Contents
 
@@ -262,15 +269,86 @@ The repository includes a GitHub Actions workflow (`.github/workflows/azure-func
 
 ### Setup CI/CD
 
-1. **Create GitHub Secrets**:
-   ```
-   AZURE_FUNCTIONAPP_PUBLISH_PROFILE
-   AZURE_CREDENTIALS (JSON format with service principal)
-   ```
+1. **Configure OIDC Authentication** (Recommended - No secrets needed after initial setup):
+   - Set up Federated credentials in Azure AD for GitHub Actions
+   - This enables keyless authentication using OpenID Connect (OIDC)
 
-2. **Trigger workflow**:
+2. **Create GitHub Secrets** for OIDC:
+   - `AZURE_CLIENT_ID`: Your Azure AD application client ID
+   - `AZURE_TENANT_ID`: Your Azure AD tenant ID
+   - `AZURE_SUBSCRIPTION_ID`: Your Azure subscription ID
+
+   To add secrets:
+   1. Go to your repository on GitHub
+   2. Settings → Secrets and variables → Actions
+   3. Click "New repository secret"
+   4. Add each of the three secrets above
+
+3. **Trigger workflow**:
    - Push to main branch, or
    - Manually from GitHub Actions tab
+
+## Environment Variables Management
+
+### How Environment Variables Are Injected
+
+Environment variables are automatically injected into the Azure Function App through the **Bicep template's app settings**:
+
+1. **Bicep Template** (`infra/main.bicep`):
+   - Defines app settings in the Function App resource configuration
+   - Creates app settings for:
+     - `FUNCTIONS_WORKER_RUNTIME`: Set to `python`
+     - `FUNCTIONS_EXTENSION_VERSION`: Set to `~4`
+     - `AzureWebJobsStorage`: Connection string to the Storage Account (auto-generated)
+     - `APPINSIGHTS_INSTRUMENTATIONKEY`: App Insights instrumentation key (auto-generated)
+     - `WEBSITE_RUN_FROM_PACKAGE`: Set to `1` for deployment from zip
+     - `SCM_DO_BUILD_DURING_DEPLOYMENT`: Set to `true` for Oryx build
+
+2. **GitHub Actions Workflow** (`.github/workflows/azure-functions-ci-cd.yml`):
+   - Deploys Bicep template which creates all resources with app settings
+   - Enables Oryx build via app settings: `SCM_DO_BUILD_DURING_DEPLOYMENT=true` and `ENABLE_ORYX_BUILD=true`
+   - Deploys the application package, which picks up all environment variables
+
+3. **Function App Access**:
+   - Your Python function (`function_app.py`) can access these variables using:
+     ```python
+     import os
+     
+     # Read environment variables
+     runtime = os.environ.get('FUNCTIONS_WORKER_RUNTIME')
+     storage_conn = os.environ.get('AzureWebJobsStorage')
+     app_insights_key = os.environ.get('APPINSIGHTS_INSTRUMENTATIONKEY')
+     
+     # Return in HTTP response
+     @app.function_name("HttpTrigger")
+     def http_trigger(req: func.HttpRequest) -> func.HttpResponse:
+         env_vars = {
+             'FUNCTIONS_WORKER_RUNTIME': runtime,
+             'AzureWebJobsStorage': storage_conn,
+             'APPINSIGHTS_INSTRUMENTATIONKEY': app_insights_key
+         }
+         return func.HttpResponse(json.dumps(env_vars), status_code=200)
+     ```
+
+### Automation Flow
+
+```
+1. Git Push (main branch)
+   ↓
+2. GitHub Actions Triggered
+   ↓
+3. Deploy Bicep Template → Creates Resources + App Settings
+   ↓
+4. Enable Oryx Build Settings
+   ↓
+5. Deploy Application Package (config-zip)
+   ↓
+6. Oryx Automatically Builds Python Environment
+   ↓
+7. Function App Starts with Environment Variables Loaded
+   ↓
+8. HTTP Trigger Reads and Returns Environment Variables
+```
 
 ## Oryx Build Configuration
 
