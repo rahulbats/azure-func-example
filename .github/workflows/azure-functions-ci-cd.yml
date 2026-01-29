@@ -146,6 +146,17 @@ jobs:
             --name "$APP_NAME" \
             --src deploy.zip
 
+      - name: Restart Function App
+        run: |
+          az functionapp restart --resource-group "$AZURE_RESOURCE_GROUP" --name "$APP_NAME"
+
+      - name: Show deployed function_app.py (Kudu)
+        run: |
+          echo "=== Deployed function_app.py from Kudu ==="
+          USER=$(az functionapp deployment list-publishing-credentials --resource-group "$AZURE_RESOURCE_GROUP" --name "$APP_NAME" --query publishingUserName -o tsv)
+          PWD=$(az functionapp deployment list-publishing-credentials --resource-group "$AZURE_RESOURCE_GROUP" --name "$APP_NAME" --query publishingPassword -o tsv)
+          curl -s -u "$USER:$PWD" "https://$APP_NAME.scm.azurewebsites.net/api/vfs/home/site/wwwroot/function_app.py" || echo "Could not fetch function_app.py"
+
       - name: App URL
         run: |
           echo "App is reachable at: https://$APP_NAME.azurewebsites.net"
