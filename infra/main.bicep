@@ -77,23 +77,23 @@ resource functionApp 'Microsoft.Web/sites@2022-03-01' = {
       alwaysOn: true // Premium supports always-on; good for cold starts and CI stability
       appSettings: [
         // --- Functions runtime ---
-        { name: 'FUNCTIONS_WORKER_RUNTIME'; value: 'python' }
-        { name: 'FUNCTIONS_EXTENSION_VERSION'; value: '~4' }
+        { name: 'FUNCTIONS_WORKER_RUNTIME', value: 'python' }
+        { name: 'FUNCTIONS_EXTENSION_VERSION', value: '~4' }
 
         // --- Package deployment / Kudu (ZipDeploy or Oryx) ---
-        { name: 'WEBSITE_RUN_FROM_PACKAGE'; value: '1' }
-        { name: 'SCM_DO_BUILD_DURING_DEPLOYMENT'; value: 'true' }
+        { name: 'WEBSITE_RUN_FROM_PACKAGE', value: '1' }
+        { name: 'SCM_DO_BUILD_DURING_DEPLOYMENT', value: 'true' }
 
         // --- App Insights ---
-        { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'; value: appInsights.properties.ConnectionString }
+        { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsights.properties.ConnectionString }
 
         // --- Identity-based AzureWebJobsStorage (NO keys) ---
-        { name: 'AzureWebJobsStorage__credential'; value: 'managedidentity' }
-        { name: 'AzureWebJobsStorage__accountName'; value: storage.name }
-        { name: 'AzureWebJobsStorage__blobServiceUri'; value: storage.properties.primaryEndpoints.blob }
-        { name: 'AzureWebJobsStorage__queueServiceUri'; value: storage.properties.primaryEndpoints.queue }
+        { name: 'AzureWebJobsStorage__credential', value: 'managedidentity' }
+        { name: 'AzureWebJobsStorage__accountName', value: storage.name }
+        { name: 'AzureWebJobsStorage__blobServiceUri', value: storage.properties.primaryEndpoints.blob }
+        { name: 'AzureWebJobsStorage__queueServiceUri', value: storage.properties.primaryEndpoints.queue }
         // Add tables if needed:
-        // { name: 'AzureWebJobsStorage__tableServiceUri'; value: storage.properties.primaryEndpoints.table }
+        // { name: 'AzureWebJobsStorage__tableServiceUri', value: storage.properties.primaryEndpoints.table }
       ]
     }
   }
