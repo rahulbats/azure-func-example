@@ -35,6 +35,42 @@ resource storage 'Microsoft.Storage/storageAccounts@2023-01-01' = {
 }
 
 // ------------------------------
+// App Configuration Store
+// ------------------------------
+var appConfigName = 'appcfg-${cleanedName}-${uniq}'
+
+resource appConfiguration 'Microsoft.AppConfiguration/configurationStores@2023-03-01' = {
+  name: appConfigName
+  location: location
+  sku: {
+    name: 'standard'
+  }
+  properties: {
+    enablePurgeProtection: false
+    publicNetworkAccess: 'Enabled'
+  }
+}
+
+// Create Key-Value configurations in App Configuration
+resource configAppName 'Microsoft.AppConfiguration/configurationStores/keyValues@2023-03-01' = {
+  parent: appConfiguration
+  name: 'APP_NAME'
+  properties: {
+    value: appName
+    contentType: 'application/json'
+  }
+}
+
+resource configAppVersion 'Microsoft.AppConfiguration/configurationStores/keyValues@2023-03-01' = {
+  parent: appConfiguration
+  name: 'APP_VERSION'
+  properties: {
+    value: appVersion
+    contentType: 'application/json'
+  }
+}
+
+// ------------------------------
 // Application Insights
 // ------------------------------
 resource appInsights 'Microsoft.Insights/components@2020-02-02' = {
@@ -94,9 +130,8 @@ resource functionApp 'Microsoft.Web/sites@2022-03-01' = {
         // --- App Insights ---
         { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsights.properties.ConnectionString }
 
-        // --- App metadata ---
-        { name: 'APP_NAME', value: appName }
-        { name: 'APP_VERSION', value: appVersion }
+        // --- App Configuration ---
+        { name: 'APP_CONFIG_ENDPOINT', value: appConfiguration.properties.endpoint }
 
         // --- Identity-based AzureWebJobsStorage (NO keys) ---
         { name: 'AzureWebJobsStorage__credential', value: 'managedidentity' }
@@ -111,10 +146,22 @@ resource functionApp 'Microsoft.Web/sites@2022-03-01' = {
 }
 
 // ------------------------------
-// RBAC for MI on storage (Blob + Queue Data Contributor)
+// RBAC for MI on App Configuration (App Configuration Data Reader)
+// and storage (Blob + Queue Data Contributor)
 // ------------------------------
+var appConfigurationDataReaderRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '516239f1-63e1-4108-9855-10f51f1cbd5f')
 var blobDataContributorRoleId  = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
 var queueDataContributorRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '974c5e8b-45b9-4653-ba55-5f855dd0fb88')
+
+resource raAppConfigDataReader 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(appConfiguration.id, appConfigurationDataReaderRoleId, 'function-app-mi')
+  scope: appConfiguration
+  properties: {
+    roleDefinitionId: appConfigurationDataReaderRoleId
+    principalId: functionApp.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
 
 resource raBlob 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(storage.id, blobDataContributorRoleId, 'azurewebjobs-mi')
@@ -141,3 +188,5 @@ resource raQueue 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
 // ------------------------------
 output functionAppName string = functionApp.name
 output storageAccountName string = storage.name
+output appConfigurationEndpoint string = appConfiguration.properties.endpoint
+output appConfigurationName string = appConfiguration.name
