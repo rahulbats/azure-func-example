@@ -4,7 +4,7 @@ This repository contains a **demo Azure Function application** that demonstrates
 
 ## Overview
 
-- **Function Behavior**: The Azure Function HTTP trigger reads environment variables (such as `FUNCTIONS_WORKER_RUNTIME`, `APPINSIGHTS_INSTRUMENTATIONKEY`, `AzureWebJobsStorage`, etc.) and outputs them in the HTTP response
+- **Function Behavior**: The Azure Function HTTP trigger reads 2 sample environment variables (`APP_NAME`, `APP_VERSION`) and outputs them in the HTTP response
 - **Infrastructure Automation**: All Azure resources (Storage, App Insights, App Service Plan, Function App) and app settings are defined in Bicep templates
 - **Deployment Automation**: GitHub Actions automatically deploys infrastructure and application code on every push to the main branch
 - **Zero-Touch Deployment**: No manual configuration needed—everything is automated via IaC and CI/CD
