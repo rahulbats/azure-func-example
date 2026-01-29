@@ -96,8 +96,7 @@ resource plan 'Microsoft.Web/serverfarms@2021-02-01' = {
   kind: 'functionapp,linux'
   properties: {
     reserved: true // Linux
-   
-    numberOfWorkers: 1
+    targetWorkerCount: 1
     maximumElasticWorkerCount: 5 
   }
 }
@@ -149,7 +148,7 @@ resource functionApp 'Microsoft.Web/sites@2022-03-01' = {
 // RBAC for MI on App Configuration (App Configuration Data Reader)
 // and storage (Blob + Queue Data Contributor)
 // ------------------------------
-var appConfigurationDataReaderRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '516239f1-63e1-4108-9855-10f51f1cbd5f')
+var appConfigurationDataReaderRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '2dc12c90-1030-426d-9575-8505a05fbae7')
 var blobDataContributorRoleId  = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
 var queueDataContributorRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '974c5e8b-45b9-4653-ba55-5f855dd0fb88')
 
