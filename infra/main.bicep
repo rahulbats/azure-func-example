@@ -152,7 +152,7 @@ resource raAppConfigContributor 'Microsoft.Authorization/roleAssignments@2022-04
   name: guid(appConfiguration.id, 'Contributor', 'function-app-mi')
   scope: appConfiguration
   properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'Contributor')
+    roleDefinitionId: roleDefinitionResourceId('Contributor')
     principalId: functionApp.identity.principalId
     principalType: 'ServicePrincipal'
   }
@@ -162,7 +162,7 @@ resource raBlob 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(storage.id, 'Storage Blob Data Contributor', 'azurewebjobs-mi')
   scope: storage
   properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'Storage Blob Data Contributor')
+    roleDefinitionId: roleDefinitionResourceId('Storage Blob Data Contributor')
     principalId: functionApp.identity.principalId
     principalType: 'ServicePrincipal'
   }
@@ -172,11 +172,12 @@ resource raQueue 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
   name: guid(storage.id, 'Storage Queue Data Contributor', 'azurewebjobs-mi')
   scope: storage
   properties: {
-    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'Storage Queue Data Contributor')
+    roleDefinitionId: roleDefinitionResourceId('Storage Queue Data Contributor')
     principalId: functionApp.identity.principalId
     principalType: 'ServicePrincipal'
   }
 }
+
 
 // ------------------------------
 // Outputs
