@@ -1,0 +1,100 @@
+name: Azure Functions CI/CD (Infra + App)
+
+on:
+  push:
+    branches: [ "main" ]
+
+permissions:
+  id-token: write   # required for azure/login OIDC
+  contents: read
+
+env:
+  AZURE_RESOURCE_GROUP: rahul-ai-test
+  AZURE_LOCATION: centralus
+  FUNCTION_APP_NAME: azure-func-demo-rahul-ci
+
+jobs:
+  infra:
+    name: Deploy infrastructure (Bicep)
+    runs-on: ubuntu-latest
+    outputs:
+      functionAppName: ${{ steps.setapp.outputs.functionAppName }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id:     ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:     ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Ensure required resource providers (safe)
+        run: |
+          set -e
+          az provider register --namespace Microsoft.OperationalInsights --wait
+          az provider register --namespace Microsoft.Insights --wait
+          az provider register --namespace Microsoft.Storage --wait
+
+      - name: Deploy Bicep template
+        id: deploy-infra
+        run: |
+          set -e
+          az deployment group create \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --template-file infra/main.bicep \
+            --parameters functionAppName="$FUNCTION_APP_NAME" location="$AZURE_LOCATION" \
+            --query properties.outputs -o json > infra_output.json
+          cat infra_output.json
+
+      - name: Set app name output
+        id: setapp
+        run: |
+          app=$(jq -r '.functionAppName.value // env.FUNCTION_APP_NAME' infra_output.json)
+          echo "functionAppName=$app" >> "$GITHUB_OUTPUT"
+
+  app:
+    name: Deploy Function App
+    runs-on: ubuntu-latest
+    needs: infra
+    env:
+      APP_NAME: ${{ needs.infra.outputs.functionAppName }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id:     ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:     ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      # Enable Oryx remote build on the Kudu side (no Basic Auth needed)
+      - name: Enable Oryx build (app settings)
+        run: |
+          az functionapp config appsettings set \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$APP_NAME" \
+            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=true ENABLE_ORYX_BUILD=true
+
+      # Zip the source (exclude infra and git clutter)
+      - name: Create deployment package
+        run: |
+          zip -r deploy.zip . \
+            -x ".git/*" ".github/*" "infra/*" "__pycache__/*" "*.pyc" "*.pyo"
+
+      # Deploy via ARM -> Kudu using AAD token (no publish profile, no Basic Auth)
+      - name: Deploy package (config-zip)
+        run: |
+          az functionapp deployment source config-zip \
+            --resource-group "$AZURE_RESOURCE_GROUP" \
+            --name "$APP_NAME" \
+            --src deploy.zip
+
+      - name: App URL
+        run: |
+          echo "App is reachable at: https://$APP_NAME.azurewebsites.net"
