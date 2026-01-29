@@ -121,7 +121,7 @@ resource functionApp 'Microsoft.Web/sites@2022-03-01' = {
         // --- Functions runtime ---
         { name: 'FUNCTIONS_WORKER_RUNTIME', value: 'python' }
         { name: 'FUNCTIONS_EXTENSION_VERSION', value: '~4' }
-
+        { name: 'AzureWebJobsFeatureFlags', value: 'EnableWorkerIndexing' }
         // --- Package deployment / Kudu (ZipDeploy or Oryx) ---
         // Use Oryx build during deployment; do NOT use run-from-package (it bypasses build)
         { name: 'SCM_DO_BUILD_DURING_DEPLOYMENT', value: 'true' }
