@@ -145,38 +145,41 @@ resource functionApp 'Microsoft.Web/sites@2022-03-01' = {
 }
 
 // ------------------------------
-// RBAC for MI on App Configuration (App Configuration Data Reader)
+// RBAC for MI on App Configuration
 // and storage (Blob + Queue Data Contributor)
 // ------------------------------
-var appConfigurationDataReaderRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '2dc12c90-1030-426d-9575-8505a05fbae7')
-var blobDataContributorRoleId  = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe')
-var queueDataContributorRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '974c5e8b-45b9-4653-ba55-5f855dd0fb88')
+// Role definitions by name -> GUID mapping
+var roles = {
+  appConfigurationContributor: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '5ae67dd6-50cb-476d-a608-f96b8de52dad') // App Configuration Contributor
+  storageBlobDataContributor: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', 'ba92f5b4-2d11-453d-a403-e96b0029c9fe') // Storage Blob Data Contributor
+  storageQueueDataContributor: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '974c5e8b-45b9-4653-ba55-5f855dd0fb88') // Storage Queue Data Contributor
+}
 
-resource raAppConfigDataReader 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(appConfiguration.id, appConfigurationDataReaderRoleId, 'function-app-mi')
+resource raAppConfigContributor 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(appConfiguration.id, roles.appConfigurationContributor, 'function-app-mi')
   scope: appConfiguration
   properties: {
-    roleDefinitionId: appConfigurationDataReaderRoleId
+    roleDefinitionId: roles.appConfigurationContributor
     principalId: functionApp.identity.principalId
     principalType: 'ServicePrincipal'
   }
 }
 
 resource raBlob 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(storage.id, blobDataContributorRoleId, 'azurewebjobs-mi')
+  name: guid(storage.id, roles.storageBlobDataContributor, 'azurewebjobs-mi')
   scope: storage
   properties: {
-    roleDefinitionId: blobDataContributorRoleId
+    roleDefinitionId: roles.storageBlobDataContributor
     principalId: functionApp.identity.principalId
     principalType: 'ServicePrincipal'
   }
 }
 
 resource raQueue 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(storage.id, queueDataContributorRoleId, 'azurewebjobs-mi')
+  name: guid(storage.id, roles.storageQueueDataContributor, 'azurewebjobs-mi')
   scope: storage
   properties: {
-    roleDefinitionId: queueDataContributorRoleId
+    roleDefinitionId: roles.storageQueueDataContributor
     principalId: functionApp.identity.principalId
     principalType: 'ServicePrincipal'
   }
