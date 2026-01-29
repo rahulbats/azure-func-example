@@ -86,4 +86,4 @@ jobs:
           az webapp deploy --resource-group $AZURE_RESOURCE_GROUP --name $funcApp --src-path deploy.zip --type zip -o json
 
       - name: List deployments
-        run: az functionapp deployment list --name ${{ needs.infra.outputs.functionAppName }} --resource-group $AZURE_RESOURCE_GROUP -o table
+        run: az webapp deployment list --name ${{ needs.infra.outputs.functionAppName }} --resource-group $AZURE_RESOURCE_GROUP -o table
