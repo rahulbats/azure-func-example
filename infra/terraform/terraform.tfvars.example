@@ -1,0 +1,8 @@
+# Example Terraform variables file
+# Copy to terraform.tfvars and modify values
+
+function_app_name   = "azure-func-demo-rahul-ci"
+location            = "centralus"
+resource_group_name = "rahul-ai-test"
+app_name            = "azure-func-demo-rahul"
+app_version         = "1.0.0"

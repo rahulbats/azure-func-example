@@ -3,6 +3,16 @@ name: Azure Functions CI/CD (Infra + App)
 on:
   push:
     branches: [ "main" ]
+  workflow_dispatch:
+    inputs:
+      iac_tool:
+        description: 'Infrastructure as Code tool to use'
+        required: true
+        default: 'bicep'
+        type: choice
+        options:
+          - bicep
+          - terraform
 
 permissions:
   id-token: write   # required for azure/login OIDC
@@ -12,10 +22,12 @@ env:
   AZURE_RESOURCE_GROUP: rahul-ai-test
   AZURE_LOCATION: centralus
   FUNCTION_APP_NAME: azure-func-demo-rahul-ci
+  # Default to bicep for push events, use input for workflow_dispatch
+  IAC_TOOL: ${{ github.event.inputs.iac_tool || 'bicep' }}
 
 jobs:
   infra:
-    name: Deploy infrastructure (Bicep)
+    name: Deploy infrastructure (${{ github.event.inputs.iac_tool || 'bicep' }})
     runs-on: ubuntu-latest
     outputs:
       functionAppName: ${{ steps.setapp.outputs.functionAppName }}
@@ -38,8 +50,12 @@ jobs:
           az provider register --namespace Microsoft.Insights --wait
           az provider register --namespace Microsoft.Storage --wait
 
+      # ------------------------------
+      # BICEP DEPLOYMENT
+      # ------------------------------
       - name: Deploy Bicep template
-        id: deploy-infra
+        id: deploy-bicep
+        if: env.IAC_TOOL == 'bicep'
         run: |
           set -e
           az deployment group create \
@@ -50,8 +66,59 @@ jobs:
             --query properties.outputs -o json > infra_output.json
           cat infra_output.json
 
+      # ------------------------------
+      # TERRAFORM DEPLOYMENT
+      # ------------------------------
+      - name: Setup Terraform
+        if: env.IAC_TOOL == 'terraform'
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Terraform Init
+        id: tf-init
+        if: env.IAC_TOOL == 'terraform'
+        working-directory: infra/terraform
+        run: terraform init
+
+      - name: Terraform Plan
+        id: tf-plan
+        if: env.IAC_TOOL == 'terraform'
+        working-directory: infra/terraform
+        env:
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          ARM_USE_OIDC: true
+        run: |
+          terraform plan \
+            -var="function_app_name=$FUNCTION_APP_NAME" \
+            -var="location=$AZURE_LOCATION" \
+            -var="resource_group_name=$AZURE_RESOURCE_GROUP" \
+            -out=tfplan
+
+      - name: Terraform Apply
+        id: deploy-terraform
+        if: env.IAC_TOOL == 'terraform'
+        working-directory: infra/terraform
+        env:
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          ARM_USE_OIDC: true
+        run: |
+          terraform apply -auto-approve tfplan
+          # Create output file in same format as Bicep for compatibility
+          echo "{\"functionAppName\":{\"value\":\"$(terraform output -raw function_app_name)\"}}" > ../infra_output.json
+          cat ../infra_output.json
+
+      - name: Move Terraform output
+        if: env.IAC_TOOL == 'terraform'
+        run: |
+          mv infra/infra_output.json infra_output.json
+
       - name: Cleanup on deployment failure
-        if: failure() && steps.deploy-infra.outcome == 'failure'
+        if: failure() && (steps.deploy-bicep.outcome == 'failure' || steps.deploy-terraform.outcome == 'failure')
         run: |
           echo "Deployment failed. Cleaning up incomplete resources..."
           # Delete orphaned role assignments to allow retry
@@ -67,8 +134,12 @@ jobs:
           app=$(jq -r '.functionAppName.value // env.FUNCTION_APP_NAME' infra_output.json)
           echo "functionAppName=$app" >> "$GITHUB_OUTPUT"
 
-      - name: Assign RBAC roles to Function App MI
+      - name: Assign RBAC roles to Function App MI (Bicep only)
+        if: env.IAC_TOOL == 'bicep'
         run: |
+          # Note: Terraform handles RBAC assignments in the template
+          # This step is only needed for Bicep deployments
+          
           # Get Function App object ID (principal ID)
           PRINCIPAL_ID=$(az functionapp identity show \
             --resource-group "$AZURE_RESOURCE_GROUP" \
