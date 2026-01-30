@@ -149,10 +149,23 @@ resource functionApp 'Microsoft.Web/sites@2022-03-01' = {
 // Storage Blob Data Contributor and Storage Queue Data Contributor
 // will be granted via role assignment on the storage account in the workflow
 // ------------------------------
-// Note: Role assignments are better managed in the deployment workflow
-// to avoid deployment conflicts. See .github/workflows/azure-functions-ci-cd.yml
 
+// ------------------------------
+// RBAC: App Configuration Data Reader for Function App MI
+// This allows the Function App to read configuration values
+// ------------------------------
+@description('App Configuration Data Reader role definition ID')
+var appConfigDataReaderRoleId = '516239f1-63e1-4d78-a4de-a74fb236a071'
 
+resource appConfigDataReaderRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(appConfiguration.id, functionApp.id, appConfigDataReaderRoleId)
+  scope: appConfiguration
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', appConfigDataReaderRoleId)
+    principalId: functionApp.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
 
 // ------------------------------
 // Outputs
