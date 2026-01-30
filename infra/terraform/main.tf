@@ -152,6 +152,10 @@ resource "azurerm_linux_function_app" "functionapp" {
   location            = var.location
   service_plan_id     = azurerm_service_plan.plan.id
   
+  # Storage configuration with managed identity
+  storage_account_name          = azurerm_storage_account.storage.name
+  storage_uses_managed_identity = true
+  
   https_only = true
   
   identity {
