@@ -8,22 +8,49 @@ on:
       iac_tool:
         description: 'Infrastructure as Code tool to use'
         required: true
-        default: 'bicep'
+        default: 'terraform'
         type: choice
         options:
           - bicep
           - terraform
+      resource_group:
+        description: 'Azure Resource Group name'
+        required: true
+        default: 'rahul-ai-test'
+        type: string
+      location:
+        description: 'Azure region for deployment'
+        required: true
+        default: 'centralus'
+        type: string
+      function_app_name:
+        description: 'Function App name (must be globally unique)'
+        required: true
+        default: 'azure-func-demo-rahul-ci'
+        type: string
+      app_name:
+        description: 'Application name (APP_NAME setting)'
+        required: true
+        default: 'azure-func-demo-rahul'
+        type: string
+      app_version:
+        description: 'Application version (APP_VERSION setting)'
+        required: true
+        default: '1.0.0'
+        type: string
 
 permissions:
   id-token: write   # required for azure/login OIDC
   contents: read
 
 env:
-  AZURE_RESOURCE_GROUP: rahul-ai-test
-  AZURE_LOCATION: centralus
-  FUNCTION_APP_NAME: azure-func-demo-rahul-ci
-  # Default to bicep for push events, use input for workflow_dispatch
-  IAC_TOOL: ${{ github.event.inputs.iac_tool || 'bicep' }}
+  # Use workflow inputs if provided (manual trigger), otherwise use defaults (push trigger)
+  AZURE_RESOURCE_GROUP: ${{ github.event.inputs.resource_group || 'rahul-ai-test' }}
+  AZURE_LOCATION: ${{ github.event.inputs.location || 'centralus' }}
+  FUNCTION_APP_NAME: ${{ github.event.inputs.function_app_name || 'azure-func-demo-rahul-ci' }}
+  APP_NAME: ${{ github.event.inputs.app_name || 'azure-func-demo-rahul' }}
+  APP_VERSION: ${{ github.event.inputs.app_version || '1.0.0' }}
+  IAC_TOOL: ${{ github.event.inputs.iac_tool || 'terraform' }}
 
 jobs:
   infra:
@@ -95,6 +122,8 @@ jobs:
             -var="function_app_name=$FUNCTION_APP_NAME" \
             -var="location=$AZURE_LOCATION" \
             -var="resource_group_name=$AZURE_RESOURCE_GROUP" \
+            -var="app_name=${{ env.APP_NAME }}" \
+            -var="app_version=${{ env.APP_VERSION }}" \
             -out=tfplan
 
       - name: Terraform Apply
