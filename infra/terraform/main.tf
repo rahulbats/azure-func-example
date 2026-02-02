@@ -147,6 +147,17 @@ resource "azurerm_app_configuration_key" "app_version" {
 }
 
 # ------------------------------
+# Log Analytics Workspace (required for Application Insights)
+# ------------------------------
+resource "azurerm_log_analytics_workspace" "loganalytics" {
+  name                = "${var.function_app_name}-law"
+  resource_group_name = data.azurerm_resource_group.rg.name
+  location            = var.location
+  sku                 = "PerGB2018"
+  retention_in_days   = 30
+}
+
+# ------------------------------
 # Application Insights
 # ------------------------------
 resource "azurerm_application_insights" "appinsights" {
@@ -154,6 +165,7 @@ resource "azurerm_application_insights" "appinsights" {
   resource_group_name = data.azurerm_resource_group.rg.name
   location            = var.location
   application_type    = "web"
+  workspace_id        = azurerm_log_analytics_workspace.loganalytics.id
 }
 
 # ------------------------------
