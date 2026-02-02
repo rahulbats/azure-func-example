@@ -54,7 +54,7 @@ env:
 
 jobs:
   infra:
-    name: Deploy infrastructure (${{ github.event.inputs.iac_tool || 'bicep' }})
+    name: Deploy infrastructure (${{ github.event.inputs.iac_tool || 'terraform' }})
     runs-on: ubuntu-latest
     outputs:
       functionAppName: ${{ steps.setapp.outputs.functionAppName }}
