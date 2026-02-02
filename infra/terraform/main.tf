@@ -103,8 +103,20 @@ resource "azurerm_app_configuration" "appconfig" {
   location            = var.location
   sku                 = "standard"
   
-  purge_protection_enabled = false
-  public_network_access    = "Enabled"
+  purge_protection_enabled   = false
+  public_network_access      = "Enabled"
+  local_auth_enabled         = true  # Required for Terraform to write keys
+}
+
+# ------------------------------
+# RBAC: App Configuration Data Owner for deploying Service Principal
+# This allows Terraform to create/update keys in App Configuration
+# ------------------------------
+resource "azurerm_role_assignment" "appconfig_data_owner_deployer" {
+  scope                = azurerm_app_configuration.appconfig.id
+  role_definition_name = "App Configuration Data Owner"
+  principal_id         = data.azurerm_client_config.current.object_id
+  principal_type       = "ServicePrincipal"
 }
 
 # Create Key-Value configurations in App Configuration
@@ -113,6 +125,8 @@ resource "azurerm_app_configuration_key" "app_name" {
   key                    = "APP_NAME"
   value                  = var.app_name
   content_type           = "application/json"
+  
+  depends_on = [azurerm_role_assignment.appconfig_data_owner_deployer]
 }
 
 resource "azurerm_app_configuration_key" "app_version" {
@@ -120,6 +134,8 @@ resource "azurerm_app_configuration_key" "app_version" {
   key                    = "APP_VERSION"
   value                  = var.app_version
   content_type           = "application/json"
+  
+  depends_on = [azurerm_role_assignment.appconfig_data_owner_deployer]
 }
 
 # ------------------------------
