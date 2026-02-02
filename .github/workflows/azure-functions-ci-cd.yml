@@ -124,6 +124,7 @@ jobs:
           ARM_USE_OIDC: true
         run: |
           terraform plan \
+            -refresh=true \
             -var="function_app_name=$FUNCTION_APP_NAME" \
             -var="location=$AZURE_LOCATION" \
             -var="resource_group_name=$AZURE_RESOURCE_GROUP" \
