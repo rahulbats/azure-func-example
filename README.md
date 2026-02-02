@@ -300,6 +300,127 @@ The repository includes a GitHub Actions workflow (`.github/workflows/azure-func
    - Push to main branch, or
    - Manually from GitHub Actions tab
 
+## Terraform Deployment (Alternative to Bicep)
+
+The repository also includes Terraform templates in `infra/terraform/` as an alternative to Bicep.
+
+### Terraform vs Bicep
+
+| Aspect | Bicep | Terraform |
+|--------|-------|-----------|
+| State Management | Azure ARM (no state file) | Requires state storage |
+| Permissions | Contributor role sufficient | Additional data plane roles needed |
+| Multi-cloud | Azure only | Multi-cloud support |
+
+### Prerequisites: Bootstrap Service Principal Permissions
+
+Before running Terraform via GitHub Actions, you must **manually grant permissions** to your Service Principal. This is a one-time setup because:
+- The SP cannot grant itself permissions it doesn't have
+- Terraform needs these permissions before it can create any resources
+
+#### Step 1: Get Your Service Principal Details
+
+```bash
+# Get your subscription ID
+az account show --query id -o tsv
+
+# Find your Service Principal (replace with your SP name)
+az ad sp list --display-name "github-action-deployer" --query "[0].{appId:appId, objectId:id}" -o table
+```
+
+#### Step 2: Create Resource Groups
+
+```bash
+# App resource group
+az group create --name <your-resource-group> --location centralus
+
+# Terraform state resource group
+az group create --name terraform-state-rg --location centralus
+```
+
+#### Step 3: Create Terraform State Storage
+
+```bash
+# Create storage account (name must be globally unique)
+az storage account create \
+    --name <unique-storage-name> \
+    --resource-group terraform-state-rg \
+    --sku Standard_LRS \
+    --encryption-services blob \
+    --min-tls-version TLS1_2
+
+# Create container for state files
+az storage container create \
+    --name tfstate \
+    --account-name <unique-storage-name> \
+    --auth-mode login
+```
+
+#### Step 4: Grant Service Principal Permissions
+
+Replace `<SP_OBJECT_ID>`, `<SUBSCRIPTION_ID>`, and `<RESOURCE_GROUP>` with your values:
+
+```bash
+# 1. Contributor - to create resources
+az role assignment create \
+    --role "Contributor" \
+    --assignee-object-id <SP_OBJECT_ID> \
+    --assignee-principal-type ServicePrincipal \
+    --scope /subscriptions/<SUBSCRIPTION_ID>/resourceGroups/<RESOURCE_GROUP>
+
+# 2. User Access Administrator - to create role assignments for Function App MI
+az role assignment create \
+    --role "User Access Administrator" \
+    --assignee-object-id <SP_OBJECT_ID> \
+    --assignee-principal-type ServicePrincipal \
+    --scope /subscriptions/<SUBSCRIPTION_ID>/resourceGroups/<RESOURCE_GROUP>
+
+# 3. Storage Blob Data Contributor - for keyless storage operations (on app RG)
+az role assignment create \
+    --role "Storage Blob Data Contributor" \
+    --assignee-object-id <SP_OBJECT_ID> \
+    --assignee-principal-type ServicePrincipal \
+    --scope /subscriptions/<SUBSCRIPTION_ID>/resourceGroups/<RESOURCE_GROUP>
+
+# 4. Storage Blob Data Contributor - for Terraform state storage
+az role assignment create \
+    --role "Storage Blob Data Contributor" \
+    --assignee-object-id <SP_OBJECT_ID> \
+    --assignee-principal-type ServicePrincipal \
+    --scope /subscriptions/<SUBSCRIPTION_ID>/resourceGroups/terraform-state-rg/providers/Microsoft.Storage/storageAccounts/<unique-storage-name>
+```
+
+#### Step 5: Update Backend Configuration
+
+Edit `infra/terraform/backend.tf` with your storage account name:
+
+```hcl
+terraform {
+  backend "azurerm" {
+    resource_group_name  = "terraform-state-rg"
+    storage_account_name = "<unique-storage-name>"
+    container_name       = "tfstate"
+    key                  = "azure-func-demo.tfstate"
+    use_oidc             = true
+  }
+}
+```
+
+#### Step 6: Run GitHub Actions with Terraform
+
+1. Go to **Actions** → **Azure Functions CI/CD**
+2. Click **Run workflow**
+3. Select **terraform** from the dropdown
+4. Click **Run workflow**
+
+### Why These Permissions?
+
+| Permission | Why Required |
+|------------|--------------|
+| **Contributor** | Create Azure resources (Storage, Function App, etc.) |
+| **User Access Administrator** | Create RBAC role assignments for Function App's Managed Identity |
+| **Storage Blob Data Contributor** | Terraform uses Azure AD auth for keyless storage (no shared keys) |
+
 ## Environment Variables Management
 
 ### How Environment Variables Are Injected

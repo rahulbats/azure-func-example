@@ -20,6 +20,7 @@ terraform {
 provider "azurerm" {
   features {}
   use_oidc = true
+  storage_use_azuread = true  # Use Azure AD for storage data plane (required when shared keys disabled)
 }
 
 # ------------------------------
@@ -90,8 +91,11 @@ resource "azurerm_storage_account" "storage" {
   account_kind             = "StorageV2"
   min_tls_version          = "TLS1_2"
   
-  shared_access_key_enabled = false
-  public_network_access_enabled = true
+  shared_access_key_enabled       = false
+  public_network_access_enabled   = true
+  
+  # Required: Grant deploying SP data plane access for Terraform to manage blobs/queues
+  # The SP needs 'Storage Blob Data Contributor' role on this storage account
 }
 
 # ------------------------------
