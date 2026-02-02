@@ -113,6 +113,54 @@ jobs:
           ARM_USE_OIDC: true
         run: terraform init
 
+      - name: Import existing resources if needed
+        id: tf-import
+        if: env.IAC_TOOL == 'terraform'
+        working-directory: infra/terraform
+        env:
+          ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          ARM_USE_OIDC: true
+        run: |
+          # Get variables for resource naming
+          CLEANED_NAME=$(echo "$FUNCTION_APP_NAME" | tr '[:upper:]' '[:lower:]' | tr -d '-')
+          
+          # Try to find existing App Configuration
+          APP_CONFIG=$(az appconfig list --resource-group "$AZURE_RESOURCE_GROUP" --query "[0].name" -o tsv 2>/dev/null || echo "")
+          
+          if [ -n "$APP_CONFIG" ]; then
+            echo "Found existing App Configuration: $APP_CONFIG"
+            
+            # Check if APP_NAME key exists and import if not in state
+            if az appconfig kv show --name "$APP_CONFIG" --key "APP_NAME" --auth-mode login &>/dev/null; then
+              echo "Importing APP_NAME key..."
+              terraform import \
+                -var="function_app_name=$FUNCTION_APP_NAME" \
+                -var="location=$AZURE_LOCATION" \
+                -var="resource_group_name=$AZURE_RESOURCE_GROUP" \
+                -var="app_name=${{ env.APP_NAME }}" \
+                -var="app_version=${{ env.APP_VERSION }}" \
+                azurerm_app_configuration_key.app_name \
+                "https://${APP_CONFIG}.azconfig.io/kv/APP_NAME?label=%00" 2>/dev/null || echo "APP_NAME already in state or import failed"
+            fi
+            
+            # Check if APP_VERSION key exists and import if not in state
+            if az appconfig kv show --name "$APP_CONFIG" --key "APP_VERSION" --auth-mode login &>/dev/null; then
+              echo "Importing APP_VERSION key..."
+              terraform import \
+                -var="function_app_name=$FUNCTION_APP_NAME" \
+                -var="location=$AZURE_LOCATION" \
+                -var="resource_group_name=$AZURE_RESOURCE_GROUP" \
+                -var="app_name=${{ env.APP_NAME }}" \
+                -var="app_version=${{ env.APP_VERSION }}" \
+                azurerm_app_configuration_key.app_version \
+                "https://${APP_CONFIG}.azconfig.io/kv/APP_VERSION?label=%00" 2>/dev/null || echo "APP_VERSION already in state or import failed"
+            fi
+          else
+            echo "No existing App Configuration found, skipping import"
+          fi
+
       - name: Terraform Plan
         id: tf-plan
         if: env.IAC_TOOL == 'terraform'
