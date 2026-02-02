@@ -14,6 +14,10 @@ terraform {
       source  = "hashicorp/random"
       version = "~> 3.0"
     }
+    time = {
+      source  = "hashicorp/time"
+      version = "~> 0.9"
+    }
   }
 }
 
@@ -220,6 +224,18 @@ resource "azurerm_linux_function_app" "functionapp" {
 }
 
 # ------------------------------
+# Wait for Azure resource propagation before creating role assignments
+# ------------------------------
+resource "time_sleep" "wait_for_resources" {
+  depends_on = [
+    azurerm_storage_account.storage,
+    azurerm_app_configuration.appconfig,
+    azurerm_linux_function_app.functionapp
+  ]
+  create_duration = "30s"
+}
+
+# ------------------------------
 # RBAC: App Configuration Data Reader for Function App MI
 # ------------------------------
 resource "azurerm_role_assignment" "appconfig_data_reader" {
@@ -227,6 +243,8 @@ resource "azurerm_role_assignment" "appconfig_data_reader" {
   role_definition_name = "App Configuration Data Reader"
   principal_id         = azurerm_linux_function_app.functionapp.identity[0].principal_id
   principal_type       = "ServicePrincipal"
+  
+  depends_on = [time_sleep.wait_for_resources]
 }
 
 # ------------------------------
@@ -237,6 +255,8 @@ resource "azurerm_role_assignment" "storage_blob_contributor" {
   role_definition_name = "Storage Blob Data Contributor"
   principal_id         = azurerm_linux_function_app.functionapp.identity[0].principal_id
   principal_type       = "ServicePrincipal"
+  
+  depends_on = [time_sleep.wait_for_resources]
 }
 
 # ------------------------------
@@ -247,6 +267,8 @@ resource "azurerm_role_assignment" "storage_queue_contributor" {
   role_definition_name = "Storage Queue Data Contributor"
   principal_id         = azurerm_linux_function_app.functionapp.identity[0].principal_id
   principal_type       = "ServicePrincipal"
+  
+  depends_on = [time_sleep.wait_for_resources]
 }
 
 # ------------------------------
